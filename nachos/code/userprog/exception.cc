@@ -166,6 +166,14 @@ ExceptionHandler(ExceptionType which)
        child->Schedule ();
        machine->WriteRegister(2, child->GetPID());		// Return value for parent
     }
+    else if ((which == SyscallException) && (type == syscall_ShmAllocate)) {
+       machine->WriteRegister(2, currentThread->GetInstructionCount());
+       (currentThread->space)->SharedSpace(machine->ReadRegister(4));
+       // Advance program counters.
+       machine->WriteRegister(PrevPCReg, machine->ReadRegister(PCReg));
+       machine->WriteRegister(PCReg, machine->ReadRegister(NextPCReg));
+       machine->WriteRegister(NextPCReg, machine->ReadRegister(NextPCReg)+4);
+    } 
     else if ((which == SyscallException) && (type == syscall_Yield)) {
        currentThread->YieldCPU();
        // Advance program counters.
@@ -300,7 +308,8 @@ ExceptionHandler(ExceptionType which)
        machine->WriteRegister(PrevPCReg, machine->ReadRegister(PCReg));
        machine->WriteRegister(PCReg, machine->ReadRegister(NextPCReg));
        machine->WriteRegister(NextPCReg, machine->ReadRegister(NextPCReg)+4);
-    } else {
+    }
+    else {
 	printf("Unexpected user mode exception %d %d\n", which, type);
 	ASSERT(FALSE);
     }

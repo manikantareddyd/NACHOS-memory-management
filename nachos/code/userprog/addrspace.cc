@@ -93,6 +93,7 @@ AddrSpace::AddrSpace(OpenFile *executable)
 	pageTable[i].valid = TRUE;
 	pageTable[i].use = FALSE;
 	pageTable[i].dirty = FALSE;
+    pageTable[i].shared= FALSE;
 	pageTable[i].readOnly = FALSE;  // if the code segment was entirely on 
 					// a separate page, we could set its 
 					// pages to be read-only
@@ -136,7 +137,7 @@ AddrSpace::AddrSpace(AddrSpace *parentSpace)
 {
     numPages = parentSpace->GetNumPages();
     unsigned i, size = numPages * PageSize;
-
+    unsigned temp=0;
     ASSERT(numPages+numPagesAllocated <= NumPhysPages);                // check we're not trying
                                                                                 // to run anything too big --
                                                                                 // at least until we have
@@ -148,26 +149,100 @@ AddrSpace::AddrSpace(AddrSpace *parentSpace)
     TranslationEntry* parentPageTable = parentSpace->GetPageTable();
     pageTable = new TranslationEntry[numPages];
     for (i = 0; i < numPages; i++) {
-        pageTable[i].virtualPage = i;
-        pageTable[i].physicalPage = i+numPagesAllocated;
-        pageTable[i].valid = parentPageTable[i].valid;
-        pageTable[i].use = parentPageTable[i].use;
-        pageTable[i].dirty = parentPageTable[i].dirty;
-        pageTable[i].readOnly = parentPageTable[i].readOnly;  	// if the code segment was entirely on
-                                        			// a separate page, we could set its
-                                        			// pages to be read-only
+        if(parentPageTable[i].shared==FALSE){
+
+            pageTable[i].virtualPage = i;
+            pageTable[i].physicalPage = temp+numPagesAllocated;
+            pageTable[i].valid = parentPageTable[i].valid;
+            pageTable[i].use = parentPageTable[i].use;
+            pageTable[i].dirty = parentPageTable[i].dirty;
+            pageTable[i].shared = parentPageTable[i].shared;
+            pageTable[i].readOnly = parentPageTable[i].readOnly;  	// if the code segment was entirely on
+                                            			// a separate page, we could set its
+            temp++;                            			// pages to be read-only
+        }
+        else{
+            pageTable[i].virtualPage = i;
+            pageTable[i].physicalPage = parentPageTable[i].physicalPage;
+            pageTable[i].valid = parentPageTable[i].valid;
+            pageTable[i].use = parentPageTable[i].use;
+            pageTable[i].dirty = parentPageTable[i].dirty;
+            pageTable[i].shared = parentPageTable[i].shared;
+            pageTable[i].readOnly = parentPageTable[i].readOnly;    // if the code segment was entirely on
+        }
     }
 
     // Copy the contents
     unsigned startAddrParent = parentPageTable[0].physicalPage*PageSize;
     unsigned startAddrChild = numPagesAllocated*PageSize;
+    unsigned tempmem;
+    tempmem=0;
     for (i=0; i<size; i++) {
-       machine->mainMemory[startAddrChild+i] = machine->mainMemory[startAddrParent+i];
+        if(parentPageTable[i/PageSize].shared==FALSE){
+            machine->mainMemory[startAddrChild+tempmem] = machine->mainMemory[startAddrParent+i];
+            tempmem++;
+        }
     }
 
-    numPagesAllocated += numPages;
+    numPagesAllocated += temp;
 }
 
+void 
+AddrSpace::SharedSpace(unsigned int NumBytes)
+{
+    unsigned i =NumBytes;
+    unsigned OldSize=numPages;
+    unsigned PageToBeAllocated=NumBytes/PageSize;
+    if(PageToBeAllocated*PageSize!=NumBytes)
+        PageToBeAllocated++;
+
+    //ASSERT(numPages+PageToBeAllocated <= NumPhysPages);   
+    //TranslationEntry* Old = pageTable;
+    TranslationEntry* newpageTable=new TranslationEntry[PageToBeAllocated+numPages];
+    for(i=0; i<numPages;i++)
+    {
+        newpageTable[i].virtualPage = i;
+        newpageTable[i].physicalPage = pageTable[i].physicalPage;
+        newpageTable[i].valid = pageTable[i].valid;
+        newpageTable[i].use = pageTable[i].use;
+        newpageTable[i].dirty = pageTable[i].dirty;
+        newpageTable[i].readOnly = pageTable[i].readOnly;
+        newpageTable[i].shared= pageTable[i].shared;
+    }
+    delete pageTable;
+    TranslationEntry* pageTable=new TranslationEntry[PageToBeAllocated+numPages];
+    for(i=0; i<numPages;i++)
+    {
+        pageTable[i].virtualPage = i;
+        pageTable[i].physicalPage = newpageTable[i].physicalPage;
+        pageTable[i].valid = newpageTable[i].valid;
+        pageTable[i].use = newpageTable[i].use;
+        pageTable[i].dirty = newpageTable[i].dirty;
+        pageTable[i].readOnly = newpageTable[i].readOnly;
+        pageTable[i].shared= newpageTable[i].shared;
+    }
+    delete newpageTable;
+    for(i=numPages;i<numPages+PageToBeAllocated;i++)
+    {
+
+            pageTable[i].virtualPage = i;
+        pageTable[i].physicalPage = i+numPagesAllocated;
+         pageTable[i].valid = TRUE;
+         pageTable[i].use = FALSE;
+         pageTable[i].dirty = FALSE;
+         pageTable[i].readOnly = FALSE;
+        pageTable[i].shared=TRUE;
+
+    }
+
+
+    numPagesAllocated+=PageToBeAllocated;
+    numPages+=PageToBeAllocated;
+    machine->pageTable=pageTable;
+    machine->pageTableSize = numPages;
+    
+    return OldSize*PageSize;
+}
 //----------------------------------------------------------------------
 // AddrSpace::~AddrSpace
 // 	Dealloate an address space.  Nothing for now!

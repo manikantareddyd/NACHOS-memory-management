@@ -26,6 +26,7 @@ class AddrSpace {
 
     AddrSpace (AddrSpace *parentSpace);	// Used by fork
 
+    SharedSpace (unsigned int NumBytes); //For implementing Shared memory space.
     ~AddrSpace();			// De-allocate an address space
 
     void InitRegisters();		// Initialize user-level CPU registers,
