@@ -167,8 +167,7 @@ ExceptionHandler(ExceptionType which)
        machine->WriteRegister(2, child->GetPID());		// Return value for parent
     }
     else if ((which == SyscallException) && (type == syscall_ShmAllocate)) {
-       machine->WriteRegister(2, currentThread->GetInstructionCount());
-       (currentThread->space)->SharedSpace(machine->ReadRegister(4));
+       machine->WriteRegister(2,(currentThread->space)->SharedSpace(machine->ReadRegister(4)));
        // Advance program counters.
        machine->WriteRegister(PrevPCReg, machine->ReadRegister(PCReg));
        machine->WriteRegister(PCReg, machine->ReadRegister(NextPCReg));

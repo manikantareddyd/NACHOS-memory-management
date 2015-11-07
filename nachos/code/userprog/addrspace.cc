@@ -187,7 +187,7 @@ AddrSpace::AddrSpace(AddrSpace *parentSpace)
     numPagesAllocated += temp;
 }
 
-void 
+unsigned
 AddrSpace::SharedSpace(unsigned int NumBytes)
 {
     unsigned i =NumBytes;
