@@ -136,8 +136,10 @@ AddrSpace::AddrSpace(OpenFile *executable)
 AddrSpace::AddrSpace(AddrSpace *parentSpace)
 {
     numPages = parentSpace->GetNumPages();
-    unsigned i, size = numPages * PageSize;
-    unsigned temp=0;
+   // printf("Intial numPagesAllocated %d\n",numPagesAllocated );
+    unsigned  size = numPages * PageSize;
+    int i;
+    int temp=0;
     ASSERT(numPages+numPagesAllocated <= NumPhysPages);                // check we're not trying
                                                                                 // to run anything too big --
                                                                                 // at least until we have
@@ -149,6 +151,7 @@ AddrSpace::AddrSpace(AddrSpace *parentSpace)
     TranslationEntry* parentPageTable = parentSpace->GetPageTable();
     pageTable = new TranslationEntry[numPages];
     for (i = 0; i < numPages; i++) {
+       // printf("parent physical page number %d, machine pageTable  %d \n", parentPageTable[i].physicalPage, machine->pageTable[i].physicalPage);
         if(parentPageTable[i].shared==FALSE){
 
             pageTable[i].virtualPage = i;
@@ -158,8 +161,9 @@ AddrSpace::AddrSpace(AddrSpace *parentSpace)
             pageTable[i].dirty = parentPageTable[i].dirty;
             pageTable[i].shared = parentPageTable[i].shared;
             pageTable[i].readOnly = parentPageTable[i].readOnly;  	// if the code segment was entirely on
-                                            			// a separate page, we could set its
-            temp++;                            			// pages to be read-only
+            temp++; 
+           // printf("first addrshared space, physical page %d, pageTable.readOnly %d, pageTable.shared %d,temp %d\n",pageTable[i].physicalPage, pageTable[i].readOnly,pageTable[i].shared,temp);
+                                     			// pages to be read-only
         }
         else{
             pageTable[i].virtualPage = i;
@@ -167,14 +171,17 @@ AddrSpace::AddrSpace(AddrSpace *parentSpace)
             pageTable[i].valid = parentPageTable[i].valid;
             pageTable[i].use = parentPageTable[i].use;
             pageTable[i].dirty = parentPageTable[i].dirty;
-            pageTable[i].shared = parentPageTable[i].shared;
-            pageTable[i].readOnly = parentPageTable[i].readOnly;    // if the code segment was entirely on
-        }
+            pageTable[i].shared = parentPageTable[i].shared;         
+            pageTable[i].readOnly = parentPageTable[i].readOnly; 
+        // printf("second addrshared space, pageTable.physicalPage %d, pageTable.readOnly %d, pageTable.shared %d,temp %d\n",pageTable[i].physicalPage, pageTable[i].readOnly,pageTable[i].shared,temp);
+                  }
     }
 
     // Copy the contents
+
     unsigned startAddrParent = parentPageTable[0].physicalPage*PageSize;
     unsigned startAddrChild = numPagesAllocated*PageSize;
+   // printf("startAddrChild %d, startAddrParent %d\n",  startAddrChild, startAddrParent);
     unsigned tempmem;
     tempmem=0;
     for (i=0; i<size; i++) {
@@ -185,22 +192,24 @@ AddrSpace::AddrSpace(AddrSpace *parentSpace)
     }
 
     numPagesAllocated += temp;
+   // printf("final numPagesAllocated %d\n", numPagesAllocated );
 }
 
 unsigned
 AddrSpace::SharedSpace(unsigned int NumBytes)
 {
-    unsigned i =NumBytes;
+    unsigned i=NumBytes;
     unsigned OldSize=numPages;
     unsigned PageToBeAllocated=NumBytes/PageSize;
     if(PageToBeAllocated*PageSize!=NumBytes)
         PageToBeAllocated++;
-
+    //printf("page to PageToBeAllocated:, PageSize, NumBytes , numPages: %d  %d %d %d\n",PageToBeAllocated, PageSize, NumBytes,numPagesAllocated);
     //ASSERT(numPages+PageToBeAllocated <= NumPhysPages);   
     //TranslationEntry* Old = pageTable;
     TranslationEntry* newpageTable=new TranslationEntry[PageToBeAllocated+numPages];
     for(i=0; i<numPages;i++)
     {
+            
         newpageTable[i].virtualPage = i;
         newpageTable[i].physicalPage = pageTable[i].physicalPage;
         newpageTable[i].valid = pageTable[i].valid;
@@ -209,8 +218,10 @@ AddrSpace::SharedSpace(unsigned int NumBytes)
         newpageTable[i].readOnly = pageTable[i].readOnly;
         newpageTable[i].shared= pageTable[i].shared;
     }
+    //pageTable=newpageTable;
     delete pageTable;
-    TranslationEntry* pageTable=new TranslationEntry[PageToBeAllocated+numPages];
+    //TranslationEntry* 
+    pageTable=new TranslationEntry[PageToBeAllocated+numPages];
     for(i=0; i<numPages;i++)
     {
         pageTable[i].virtualPage = i;
@@ -220,27 +231,29 @@ AddrSpace::SharedSpace(unsigned int NumBytes)
         pageTable[i].dirty = newpageTable[i].dirty;
         pageTable[i].readOnly = newpageTable[i].readOnly;
         pageTable[i].shared= newpageTable[i].shared;
+     //   printf("first shared space, pageTable.physicalPage %d, pageTable.readOnly %d, pageTable.shared %d\n",pageTable[i].physicalPage, pageTable[i].readOnly,pageTable[i].shared);
     }
     delete newpageTable;
+    
     for(i=numPages;i<numPages+PageToBeAllocated;i++)
     {
 
             pageTable[i].virtualPage = i;
-        pageTable[i].physicalPage = i+numPagesAllocated;
+            pageTable[i].physicalPage = i-numPages+numPagesAllocated;
          pageTable[i].valid = TRUE;
          pageTable[i].use = FALSE;
          pageTable[i].dirty = FALSE;
          pageTable[i].readOnly = FALSE;
         pageTable[i].shared=TRUE;
-
+//printf("second shared space, physical page %d, pageTable.readOnly %d, pageTable.shared %d\n",pageTable[i].physicalPage,pageTable[i].readOnly,pageTable[i].shared);
     }
-
+  //  printf("HELLO from the SharedSpace\n");
 
     numPagesAllocated+=PageToBeAllocated;
     numPages+=PageToBeAllocated;
     machine->pageTable=pageTable;
     machine->pageTableSize = numPages;
-    
+    //printf("Returned Virtual address %d, numPagesAllocated %d\n", OldSize*PageSize,numPagesAllocated);
     return OldSize*PageSize;
 }
 //----------------------------------------------------------------------

@@ -55,8 +55,10 @@ static void ReadAvail(int arg) { readAvail->V(); }
 static void WriteDone(int arg) { writeDone->V(); }
 
 extern void StartProcess (char*);
-
-void
+extern int  SemKey[];
+extern int SemCount;
+extern Semaphore *SemArray[];
+void    
 ForkStartFunction (int dummy)
 {
    currentThread->Startup();
@@ -172,7 +174,80 @@ ExceptionHandler(ExceptionType which)
        machine->WriteRegister(PrevPCReg, machine->ReadRegister(PCReg));
        machine->WriteRegister(PCReg, machine->ReadRegister(NextPCReg));
        machine->WriteRegister(NextPCReg, machine->ReadRegister(NextPCReg)+4);
+    }
+    else if ((which == SyscallException) && (type == syscall_SemGet)) {
+      int Yokey = machine->ReadRegister(4);
+      int Yoid = -100;
+      for(i=0;i<1000;i++){
+        if(Yokey == SemKey[i])
+          { Yoid=i; break;}
+      }
+      if(Yoid==-100){
+          IntStatus oldLevel = interrupt->SetLevel(IntOff);
+          Yoid = SemCount;
+          SemKey[Yoid]=Yokey;
+          SemArray[Yoid] = new Semaphore(NULL,1);
+          SemCount++;
+        (void) interrupt->SetLevel(oldLevel);
+      }
+      
+      machine->WriteRegister(2,Yoid);
+       // Advance program counters.
+       machine->WriteRegister(PrevPCReg, machine->ReadRegister(PCReg));
+       machine->WriteRegister(PCReg, machine->ReadRegister(NextPCReg));
+       machine->WriteRegister(NextPCReg, machine->ReadRegister(NextPCReg)+4);
     } 
+    else if ((which == SyscallException) && (type == syscall_SemOp)) {
+        int Yoid = machine->ReadRegister(4);
+        int Yoadjustment = machine->ReadRegister(5);
+        if ( Yoadjustment == -1 )
+            SemArray[Yoid]->P(); 
+        else 
+            SemArray[Yoid]->V();
+        // Advance program counters.
+        machine->WriteRegister(PrevPCReg, machine->ReadRegister(PCReg));
+        machine->WriteRegister(PCReg, machine->ReadRegister(NextPCReg));
+        machine->WriteRegister(NextPCReg, machine->ReadRegister(NextPCReg)+4);
+    }
+   else if ((which == SyscallException) && (type == syscall_SemCtl)) {
+         int Yoid = machine->ReadRegister(4);
+        int Oper = machine->ReadRegister(5);
+        int vaddr = machine->ReadRegister(6);
+        int Return = -1;
+          if(Yoid<1000 && Yoid>=0){
+            if( Oper == SYNCH_REMOVE ) 
+            {
+              if(SemKey[Yoid]>=0){
+                SemKey[Yoid]=-100;
+                delete SemArray[Yoid];
+                SemArray[Yoid]=NULL;
+                Return = 0;
+              }
+            } 
+            else if ( Oper == SYNCH_GET ) 
+            {
+              if(machine->GetPA(vaddr)>=0){
+                machine->mainMemory[machine->GetPA(vaddr)] = SemArray[Yoid]->GetValue();
+                Return = 0;
+              }
+            } 
+            else if ( Oper == SYNCH_SET ) 
+            {
+              printf("Hello from SYNCH_SET\n");
+              printf("value to be set %d\n", machine->mainMemory[machine->GetPA(vaddr)]);
+               if(machine->GetPA(vaddr)>=0){
+                 SemArray[Yoid]->SetValue(machine->mainMemory[machine->GetPA(vaddr)]);
+                 Return = 0;
+               }
+            }
+          }
+        // Advance program counters.
+        machine->WriteRegister(PrevPCReg, machine->ReadRegister(PCReg));
+        machine->WriteRegister(PCReg, machine->ReadRegister(NextPCReg));
+        machine->WriteRegister(NextPCReg, machine->ReadRegister(NextPCReg)+4);
+
+        machine->WriteRegister(2, Return);
+    }
     else if ((which == SyscallException) && (type == syscall_Yield)) {
        currentThread->YieldCPU();
        // Advance program counters.

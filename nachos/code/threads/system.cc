@@ -20,7 +20,9 @@ Timer *timer;				// the hardware timer device,
 					// for invoking context switches
 
 unsigned numPagesAllocated;              // number of physical frames allocated
-
+int SemKey[1000];
+int SemCount;
+Semaphore *SemArray[1000];
 NachOSThread *threadArray[MAX_THREAD_COUNT];  // Array of thread pointers
 unsigned thread_index;			// Index into this array (also used to assign unique pid)
 bool initializedConsoleSemaphores;
@@ -109,6 +111,10 @@ TimerInterruptHandler(int dummy)
 void
 Initialize(int argc, char **argv)
 {
+    for(int init=0; init<1000; init++)
+    {
+        SemKey[init]=-100;
+    }
     int argCount, i;
     char* debugArgs = "";
     bool randomYield = FALSE;

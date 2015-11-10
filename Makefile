@@ -10,7 +10,7 @@ test :
 		ssh $(USER)@csecourses4.cse.iitk.ac.in 'cd cs330assignment3/nachos/code/bin/;make;cd ../test/;make'
 
 source :
-		ssh $(USER)@csecourses1.cse.iitk.ac.in 'cd cs330assignment3/nachos/code/threads/;make depend;make;cd ../userprog/;make depend;make'
+		ssh $(USER)@csecourses1.cse.iitk.ac.in 'cd cs330assignment3/nachos/code/userprog/; make depend;make'
 
 run :
-		ssh $(USER)@csecourses1.cse.iitk.ac.in 'cd cs330assignment3/nachos/code/userprog/;./nachos -x ../test/$(arg)'
+		ssh $(USER)@csecourses1.cse.iitk.ac.in 'cd cs330assignment3/nachos/code/userprog/; ./nachos -rs 0 -A 3 -P 100 -x ../test/semaphores'

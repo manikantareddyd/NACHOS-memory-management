@@ -15,7 +15,7 @@
 #include "interrupt.h"
 #include "stats.h"
 #include "timer.h"
-
+#include "synch.h"
 #define MAX_THREAD_COUNT 1000
 #define MAX_BATCH_SIZE 100
 
