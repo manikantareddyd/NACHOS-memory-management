@@ -48,7 +48,7 @@ Semaphore::Semaphore(char* debugName, int initialValue)
 
 Semaphore::~Semaphore()
 {
-    delete queue;
+    delete CondQueue;
 }
 
 //----------------------------------------------------------------------
@@ -92,7 +92,7 @@ Semaphore::V()
 
     thread = (NachOSThread *)queue->Remove();
     if (thread != NULL)    // make thread ready, consuming the V immediately
-    scheduler->ReadyToRun(thread);
+        scheduler->ReadyToRun(thread);
     value++;
     (void) interrupt->SetLevel(oldLevel);
 }
@@ -115,9 +115,9 @@ void Condition::Broadcast(Lock* conditionLock) { }
 void Condition::Wait(Semaphore* Sem)
 {
     IntStatus oldLevel = interrupt->SetLevel(IntOff);   // disable interrupts
-    
+        
     Sem->V();
-    queue->Append((void *)currentThread);   // so go to sleep
+    CondQueue->Append((void *)currentThread);   // so go to sleep
     currentThread->PutThreadToSleep();
     
     (void) interrupt->SetLevel(oldLevel);   // re-enable interrupts
@@ -128,7 +128,7 @@ void Condition::Signal()
     NachOSThread *thread;
     IntStatus oldLevel = interrupt->SetLevel(IntOff);
 
-    thread = (NachOSThread *)queue->Remove();
+    thread = (NachOSThread *)CondQueue->Remove();
     if (thread != NULL)
         scheduler->ReadyToRun(thread);
 
@@ -138,12 +138,12 @@ void Condition::Broadcast()
 {
     NachOSThread *thread;
     IntStatus oldLevel = interrupt->SetLevel(IntOff);
-    thread = (NachOSThread *)queue->Remove();
+    thread = (NachOSThread *)CondQueue->Remove();
     while(thread!=NULL)
     {
         if (thread != NULL)
             scheduler->ReadyToRun(thread);
-        thread = (NachOSThread *)queue->Remove();
+        thread = (NachOSThread *)CondQueue->Remove();
     }
     (void) interrupt->SetLevel(oldLevel);   
-}
+}   

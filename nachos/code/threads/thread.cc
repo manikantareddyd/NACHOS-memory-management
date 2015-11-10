@@ -356,7 +356,7 @@ NachOSThread::YieldCPU ()
 //
 //	NOTE: we assume interrupts are already disabled, because it
 //	is called from the synchronization routines which must
-//	disable interrupts for atomicity.   We need interrupts off 
+//	disable interrupts for atomicity. We need interrupts off 
 //	so that there can't be a time slice between pulling the first thread
 //	off the ready list, and switching to it.
 //----------------------------------------------------------------------
@@ -396,7 +396,7 @@ NachOSThread::PutThreadToSleep ()
        scheduler->SetEmptyReadyQueueStartTime (stats->totalTicks);
     }
     while (nextThread == NULL) {
-	interrupt->Idle();	// no one to run, wait for an interrupt
+	      interrupt->Idle();	// no one to run, wait for an interrupt
         nextThread = scheduler->FindNextToRun();
     }
         

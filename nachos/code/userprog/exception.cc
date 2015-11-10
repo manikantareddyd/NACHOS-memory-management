@@ -58,6 +58,12 @@ extern void StartProcess (char*);
 extern int  SemKey[];
 extern int SemCount;
 extern Semaphore *SemArray[];
+
+
+extern int CondKey[];
+extern int CondCount;
+extern Condition *CondArray[];
+
 void    
 ForkStartFunction (int dummy)
 {
@@ -210,7 +216,7 @@ ExceptionHandler(ExceptionType which)
         machine->WriteRegister(NextPCReg, machine->ReadRegister(NextPCReg)+4);
     }
    else if ((which == SyscallException) && (type == syscall_SemCtl)) {
-         int Yoid = machine->ReadRegister(4);
+        int Yoid = machine->ReadRegister(4);
         int Oper = machine->ReadRegister(5);
         int vaddr = machine->ReadRegister(6);
         int Return = -1;
@@ -248,6 +254,74 @@ ExceptionHandler(ExceptionType which)
 
         machine->WriteRegister(2, Return);
     }
+
+    else if ((which == SyscallException) && (type == syscall_CondGet)) {
+        int Yokey = machine->ReadRegister(4);
+        int Yoid = -100;
+        for(i=0;i<1000;i++)
+        {
+          if(Yokey == CondKey[i])
+            { 
+              Yoid=i; 
+              break;
+            }
+        }
+        
+        if(Yoid==-100){
+          IntStatus oldLevel = interrupt->SetLevel(IntOff);
+          Yoid = CondCount;
+          CondKey[Yoid]=Yokey;
+          CondArray[Yoid] = new Condition();
+          CondCount++;
+          (void) interrupt->SetLevel(oldLevel);
+        }
+
+        // Advance program counters.
+        machine->WriteRegister(PrevPCReg, machine->ReadRegister(PCReg));
+        machine->WriteRegister(PCReg, machine->ReadRegister(NextPCReg));
+        machine->WriteRegister(NextPCReg, machine->ReadRegister(NextPCReg)+4);
+        machine->WriteRegister(2, Yoid);
+    } 
+
+   
+
+    else if ((which == SyscallException) && (type == syscall_CondOp)) {
+        int YoId = machine->ReadRegister(4);
+        int YoOp = machine->ReadRegister(5);
+        int YoSem = machine->ReadRegister(6);
+
+            if(YoOp == COND_OP_WAIT) {
+                CondArray[YoId]->Wait(SemArray[YoSem]);
+            } else if (YoOp == COND_OP_SIGNAL) {
+                CondArray[YoId]->Signal();
+            } else if (YoOp == COND_OP_BROADCAST) {
+                CondArray[YoId]->Broadcast();
+            }
+
+        // Advance program counters.
+        machine->WriteRegister(PrevPCReg, machine->ReadRegister(PCReg));
+        machine->WriteRegister(PCReg, machine->ReadRegister(NextPCReg));
+        machine->WriteRegister(NextPCReg, machine->ReadRegister(NextPCReg)+4);
+    } 
+
+
+    else if ((which == SyscallException) && (type == syscall_CondRemove)) {
+        int YoId = machine->ReadRegister(4);
+        int Return = -1;
+        if(YoId<1000 && YoId>=0)
+        {
+          CondArray[YoId] = -1;
+          delete CondArray[YoId];
+          Return = 0;
+        }  
+        // Advance program counters.
+        machine->WriteRegister(PrevPCReg, machine->ReadRegister(PCReg));
+        machine->WriteRegister(PCReg, machine->ReadRegister(NextPCReg));
+        machine->WriteRegister(NextPCReg, machine->ReadRegister(NextPCReg)+4);
+
+        machine->WriteRegister(2, Return);
+    }
+
     else if ((which == SyscallException) && (type == syscall_Yield)) {
        currentThread->YieldCPU();
        // Advance program counters.
